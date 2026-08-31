@@ -1,69 +1,111 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+
+type Message = {
+  agent: "A" | "B";
+  text: string;
+};
 
 export default function Home() {
+  const [topic, setTopic] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  async function startConversation() {
+    if (!topic.trim()) {
+      alert("주제를 입력해주세요.");
+      return;
+    }
+
+    setLoading(true);
+    setMessages([]);
+
+    try {
+      const response = await fetch("/api/conversation", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ topic }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "대화 생성에 실패했습니다.");
+      }
+
+      setMessages(data.messages);
+    } catch (error) {
+      console.error(error);
+      alert("대화 생성 중 오류가 발생했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="min-h-screen bg-gray-100 p-8"> 
+      <div className="mx-auto max-w-3xl"> 
+        <h1 className="mb-2 text-3xl font-bold"> 
+          🤖 AI Agent Conversation 
+        </h1> 
+
+        <p className="mb-8 text-gray-500"> 
+          서로 다른 성격의 AI Agent를 대화시켜보세요. 
+        </p> 
+        
+        <div className="rounded-2xl bg-white p-6 shadow-sm"> 
+          <label className="mb-2 block text-sm font-medium"> 
+            토론 주제 
+          </label> 
+
+          <textarea 
+            value={topic} 
+            onChange={(e) => setTopic(e.target.value)} 
+            className="mb-4 w-full rounded-xl border p-4 outline-none focus:ring-2 focus:ring-black" 
+            rows={3} 
+            placeholder="예: 대학생을 위한 AI 여행 플래너" 
+          /> 
+
+          <button 
+            onClick={startConversation} 
+            disabled={loading} 
+            className="rounded-xl bg-black px-5 py-3 font-medium text-white disabled:opacity-50"
+          > 
+            {loading ? "Agent들이 대화 중..." : "▶ 대화 시작"} 
+          </button> 
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+
+        <div className="mt-8 space-y-4"> 
+          {messages.map((message, index) => { 
+            const isA = message.agent === "A"; 
+            
+            return ( 
+              <div 
+                key={index} 
+                className={`flex ${ 
+                  isA ? "justify-start" : "justify-end" 
+                }`} 
+              > 
+                <div className={`max-w-[80%] rounded-2xl p-5 ${ 
+                  isA ? "bg-white" : "bg-black text-white" 
+                }`}> 
+                  <div className="mb-2 text-sm font-bold"> 
+                    {isA ? "🤖 Agent A · 창업가" : "🤖 Agent B · 투자자"} 
+                  </div> <p className="leading-7"> {message.text} </p> 
+                </div> 
+              </div> ); 
+          })} 
+        </div> 
+        
+        {loading && ( 
+          <div className="mt-6 text-center text-gray-400"> 
+            🤖 Agent들이 생각하고 있습니다... 
+          </div> 
+        )} 
+      </div> 
+    </main> 
+  ); 
 }
