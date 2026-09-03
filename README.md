@@ -35,3 +35,20 @@ python -c "import sqlite3; conn=sqlite3.connect('data/conversations.db'); print(
 (4, 'Agent B', '...')
 ]
 ```
+
+### 전체 실행 방법 정리
+
+1. 프로젝트 폴더로 이동
+2. 가상환경 활성화
+3. Ollama 확인
+4. Streamlit 실행
+5. 브라우저에서 질문 입력
+
+```git bash
+cd ai-agent-chat
+source .venv/bin/activate
+ollama list
+python3 -m streamlit run app.py
+```
+
+정상이라면 브라우저에서 다음 주소로 접속: `http://localhost:8501`
