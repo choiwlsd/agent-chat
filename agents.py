@@ -9,7 +9,7 @@ class Agent:
         self.name = name
         self.role = role
 
-    def respond(self, user_message):
+    def respond(self, user_message, stream_callback=None):
         system_prompt = f"""
 당신의 이름은 {self.name}입니다.
 
@@ -21,7 +21,7 @@ class Agent:
 주어진 질문을 자신의 역할에 맞게 분석하고 답변하세요.
 """
 
-        response = ollama.chat(
+        stream = ollama.chat(
             model=MODEL_NAME,
             messages=[
                 {
@@ -33,9 +33,21 @@ class Agent:
                     "content": user_message,
                 },
             ],
+            stream=True,
         )
 
-        return response["message"]["content"]
+        full_response = ""
+
+        for chunk in stream:
+            text = chunk["message"]["content"]
+
+            if text:
+                full_response += text
+
+                if stream_callback:
+                    stream_callback(text)
+
+        return full_response
 
 
 agent_a = Agent(
@@ -55,15 +67,3 @@ agent_b = Agent(
 더 나은 방향으로 개선할 수 있도록 조언하세요.
 """,
 )
-
-
-if __name__ == "__main__":
-    question = input("질문을 입력하세요: ")
-
-    print("\n--- Agent A ---")
-    answer_a = agent_a.respond(question)
-    print(answer_a)
-
-    print("\n--- Agent B ---")
-    answer_b = agent_b.respond(question)
-    print(answer_b)

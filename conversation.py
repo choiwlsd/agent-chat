@@ -1,6 +1,22 @@
 from agents import agent_a, agent_b
 
 
+def format_history(history):
+    if not history:
+        return "아직 대화가 없습니다."
+
+    lines = []
+
+    for item in history:
+        lines.append(f"{item['agent']}: {item['message']}")
+
+    return "\n\n".join(lines)
+
+
+def print_stream(text):
+    print(text, end="", flush=True)
+
+
 def run_conversation(user_question, rounds=4):
     history = []
 
@@ -26,7 +42,15 @@ def run_conversation(user_question, rounds=4):
 이전 내용을 단순 반복하지 말고, 상대 Agent의 의견에 반응하세요.
 """
 
-        response = current_agent.respond(prompt)
+        print(f"\n--- {turn + 1}번째 대화 / {current_agent.name} ---")
+        print("생각 중...\n")
+
+        response = current_agent.respond(
+            prompt,
+            stream_callback=print_stream,
+        )
+
+        print("\n")
 
         history.append(
             {
@@ -40,29 +64,12 @@ def run_conversation(user_question, rounds=4):
     return history
 
 
-def format_history(history):
-    if not history:
-        return "아직 대화가 없습니다."
-
-    lines = []
-
-    for item in history:
-        lines.append(f"{item['agent']}: {item['message']}")
-
-    return "\n\n".join(lines)
-
-
 if __name__ == "__main__":
     question = input("사용자 질문을 입력하세요: ")
 
     print("\n대화를 시작합니다...\n")
 
-    conversation = run_conversation(
+    run_conversation(
         user_question=question,
         rounds=4,
     )
-
-    for index, item in enumerate(conversation, start=1):
-        print(f"--- {index}번째 대화 / {item['agent']} ---")
-        print(item["message"])
-        print()
