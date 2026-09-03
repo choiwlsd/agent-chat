@@ -1,4 +1,9 @@
 from agents import agent_a, agent_b
+from database import (
+    init_db,
+    create_conversation,
+    save_message,
+)
 
 
 def format_history(history):
@@ -8,7 +13,9 @@ def format_history(history):
     lines = []
 
     for item in history:
-        lines.append(f"{item['agent']}: {item['message']}")
+        lines.append(
+            f"{item['agent']}: {item['message']}"
+        )
 
     return "\n\n".join(lines)
 
@@ -18,8 +25,13 @@ def print_stream(text):
 
 
 def run_conversation(user_question, rounds=4):
-    history = []
+    init_db()
 
+    conversation_id = create_conversation(
+        user_question
+    )
+
+    history = []
     current_message = user_question
 
     for turn in range(rounds):
@@ -39,10 +51,15 @@ def run_conversation(user_question, rounds=4):
 {current_message}
 
 당신의 역할에 맞게 다음 대화를 이어가세요.
-이전 내용을 단순 반복하지 말고, 상대 Agent의 의견에 반응하세요.
+이전 내용을 단순 반복하지 말고,
+상대 Agent의 의견에 반응하세요.
 """
 
-        print(f"\n--- {turn + 1}번째 대화 / {current_agent.name} ---")
+        print(
+            f"\n--- {turn + 1}번째 대화 / "
+            f"{current_agent.name} ---"
+        )
+
         print("생각 중...\n")
 
         response = current_agent.respond(
@@ -59,13 +76,22 @@ def run_conversation(user_question, rounds=4):
             }
         )
 
+        save_message(
+            conversation_id=conversation_id,
+            turn_number=turn + 1,
+            agent_name=current_agent.name,
+            message=response,
+        )
+
         current_message = response
 
     return history
 
 
 if __name__ == "__main__":
-    question = input("사용자 질문을 입력하세요: ")
+    question = input(
+        "사용자 질문을 입력하세요: "
+    )
 
     print("\n대화를 시작합니다...\n")
 
