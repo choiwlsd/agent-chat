@@ -11,9 +11,6 @@ st.set_page_config(
     layout="centered",
 )
 
-CLARIFICATION_MARKER = "[[사용자_확인_필요]]"
-
-
 def run_agent_conversation(
     user_question,
     rounds=4,
@@ -44,16 +41,22 @@ def run_agent_conversation(
                 full_response += text
                 response_placeholder.markdown(full_response + "▌")
 
+            needs_clarification = False
             with st.spinner("답변을 생성하고 있습니다..."):
-                callback = stream_to_ui if current_agent is agent_a else None
-                response = current_agent.respond(prompt, stream_callback=callback)
+                if current_agent is agent_b:
+                    ambiguity = agent_b.check_ambiguity(user_question)
+                    needs_clarification = ambiguity["needs_clarification"]
 
-            needs_clarification = response.lstrip().startswith(
-                CLARIFICATION_MARKER
-            )
-            visible_response = response.replace(
-                CLARIFICATION_MARKER, "", 1
-            ).strip()
+                if needs_clarification:
+                    response = ambiguity["question"]
+                else:
+                    callback = stream_to_ui if current_agent is agent_a else None
+                    response = current_agent.respond(
+                        prompt,
+                        stream_callback=callback,
+                    )
+
+            visible_response = response.strip()
             response_placeholder.markdown(visible_response)
 
         history.append({"agent": current_agent.name, "message": visible_response})

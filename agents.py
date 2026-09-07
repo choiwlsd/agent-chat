@@ -1,3 +1,6 @@
+import json
+import re
+
 import ollama
 
 
@@ -47,6 +50,91 @@ class Agent:
                     stream_callback(text)
 
         return full_response
+
+    def check_ambiguity(self, user_question):
+        acronym_candidates = sorted(
+            set(re.findall(r"(?<![A-Za-z])[A-Z]{2,}(?![A-Za-z])", user_question))
+        )
+        expanded_acronyms = set(
+            re.findall(r"\(\s*([A-Z]{2,})\s*\)", user_question)
+        )
+        expanded_acronyms.update(
+            re.findall(r"(?<![A-Za-z])([A-Z]{2,})\s*\([^)]{2,}\)", user_question)
+        )
+        acronym_candidates = [
+            term for term in acronym_candidates if term not in expanded_acronyms
+        ]
+        schema = {
+            "type": "object",
+            "properties": {
+                "needs_clarification": {"type": "boolean"},
+                "ambiguous_term": {"type": "string"},
+                "possible_meanings": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+                "question": {"type": "string"},
+            },
+            "required": [
+                "needs_clarification",
+                "ambiguous_term",
+                "possible_meanings",
+                "question",
+            ],
+        }
+        prompt = f"""
+사용자 질문에 답하기 전에 의미 확인이 필요한지 판정하세요.
+질문 안의 특정 표현에 서로 다른 구체적 의미가 2개 이상 있고, 문맥만으로 하나를
+선택할 수 없으며, 선택에 따라 답변이 실질적으로 달라질 때만 확인이 필요합니다.
+질문에 의미가 풀어 쓰여 있으면 확인하지 마세요.
+확인이 필요하면 모호한 표현과 가능한 의미들을 반환하세요.
+필요하지 않으면 문자열과 배열을 비워서 반환하세요.
+
+코드가 찾은 영문 약어 후보: {acronym_candidates}
+후보가 있다면 각 약어에 널리 쓰이는 서로 다른 의미가 있는지 반드시 확인하세요.
+
+사용자 질문:
+{user_question}
+"""
+        response = ollama.chat(
+            model=MODEL_NAME,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "질문의 의미가 모호한지만 엄격하게 판정합니다.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            format=schema,
+            stream=False,
+            options={"temperature": 0},
+        )
+        result = json.loads(response["message"]["content"])
+        meanings = [
+            str(item).strip()
+            for item in result["possible_meanings"]
+            if str(item).strip()
+        ]
+        needs_clarification = (
+            bool(result["needs_clarification"])
+            and bool(str(result["ambiguous_term"]).strip())
+            and len(meanings) >= 2
+        )
+        if str(result["ambiguous_term"]).strip() in expanded_acronyms:
+            needs_clarification = False
+        question = str(result["question"]).strip()
+        if needs_clarification and not question:
+            question = "질문에서 어떤 의미를 뜻하셨는지 조금 더 설명해 주시겠어요?"
+        if needs_clarification:
+            term = str(result["ambiguous_term"]).strip()
+            question = f"'{term}'은 어떤 의미로 사용하셨나요? 뜻을 풀어서 알려주세요."
+
+        return {
+            "needs_clarification": needs_clarification,
+            "ambiguous_term": str(result["ambiguous_term"]).strip(),
+            "possible_meanings": meanings,
+            "question": question,
+        }
 
 
 agent_a = Agent(
@@ -119,11 +207,6 @@ Agent A의 답변이 단순히 그럴듯한 답변인지가 아니라,
 
 [검토 방식]
 - 반드시 사용자의 원래 질문을 기준으로 Agent A의 답변을 검토합니다.
-- 원래 질문에 약어 또는 여러 뜻으로 해석될 수 있는 표현이 있고 문맥만으로 뜻을
-  확정할 수 없다면 추측하지 말고 사용자에게 의미를 확인합니다.
-- 사용자 확인이 필요할 때는 다른 설명 없이 첫 줄에 [[사용자_확인_필요]]를 쓰고,
-  다음 줄에 사용자가 선택하거나 짧게 답할 수 있는 질문 하나만 작성합니다.
-  예: "CV는 이력서와 컴퓨터 비전 중 어느 의미인가요?"
 - Agent A의 답변 자체만 보고 판단하지 않습니다.
 - "좋은 아이디어인가?"보다 먼저 "질문에 맞는 아이디어인가?"를 확인합니다.
 - 질문에서 요구하지 않은 방향으로 답변이 확장되었는지 확인합니다.
