@@ -43,12 +43,18 @@ python -c "import sqlite3; conn=sqlite3.connect('data/conversations.db'); print(
 3. Ollama 확인
 4. Streamlit 실행
 5. 브라우저에서 질문 입력
+6. 가상환경 비활성화
 
 ```git bash
-cd ai-agent-chat
-source .venv/bin/activate
+cd agent-chat
+source .venv/Scripts/activate
+
+ollama --version
 ollama list
-python3 -m streamlit run app.py
+
+streamlit run app.py
+
+deactivate
 ```
 
 정상이라면 브라우저에서 다음 주소로 접속: `http://localhost:8501`
